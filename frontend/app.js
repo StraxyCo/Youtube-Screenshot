@@ -92,25 +92,33 @@ async function captureFrame(videoId, timestamp) {
       // Wait for iframe to load, play, and render
       setTimeout(async () => {
         try {
+          console.log(`📊 DEBUG: Container size:`, container.offsetWidth, 'x', container.offsetHeight);
+          console.log(`📊 DEBUG: Container visible:`, container.offsetParent !== null);
+          console.log(`📊 DEBUG: Container computed style:`, window.getComputedStyle(container).display);
+          console.log(`📊 DEBUG: iframe src:`, embed.src);
+          console.log(`📊 DEBUG: iframe readyState:`, embed.readyState);
+
           console.log(`📸 html2canvas capturing at ${timestamp}s`);
           const canvas = await html2canvas(container, {
             backgroundColor: '#000000',
             scale: window.devicePixelRatio || 1,
             useCORS: true,
             allowTaint: true,
-            logging: false,
+            logging: true,  // Enable logging to see what html2canvas sees
             foreignObjectRendering: true
           });
 
+          console.log(`📊 Canvas size:`, canvas.width, 'x', canvas.height);
           const base64 = canvas.toDataURL('image/jpeg', 0.95);
-          console.log(`✅ Frame captured at ${timestamp}s`);
+          console.log(`✅ Frame captured at ${timestamp}s, base64 length:`, base64.length);
 
           // Clean up
           document.body.removeChild(container);
 
           resolve({ timestamp, data: base64 });
         } catch (err) {
-          console.error(`❌ Capture error at ${timestamp}s:`, err.message);
+          console.error(`❌ Capture error at ${timestamp}s:`, err);
+          console.error(`❌ Error details:`, err.message, err.stack);
           if (document.body.contains(container)) {
             document.body.removeChild(container);
           }
