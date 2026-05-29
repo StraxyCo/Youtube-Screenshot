@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YouTube Frame Extractor</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>YouTube Frame Extractor</h1>
+      <p>Extract 8 frames from any YouTube video and download them for Figma</p>
+    </div>
+
+    <div class="input-section">
+      <input
+        type="text"
+        id="urlInput"
+        placeholder="Paste YouTube URL..."
+        class="url-input"
+      >
+      <button id="extractBtn" class="btn btn-primary">Extract</button>
+    </div>
+
+    <div id="errorToast" class="toast hidden"></div>
+
+    <div id="loadingIndicator" class="loading-indicator hidden">
+      Extraction in progress…
+    </div>
+
+    <div id="gridSection" class="grid-section hidden">
+      <div class="grid-header">
+        <h2 id="videoTitle"></h2>
+        <button id="nextBtn" class="btn btn-secondary">Next ➜</button>
+      </div>
+      <div id="framesGrid" class="frames-grid"></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

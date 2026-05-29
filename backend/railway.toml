@@ -1,0 +1,11 @@
+[build]
+builder = "nixpacks"
+
+[build.env]
+NIXPACKS_APT_PACKAGES = "python3-pip"
+
+[[build.commands]]
+cmd = "pip3 install yt-dlp"
+
+[deploy]
+startCommand = "node index.js"
