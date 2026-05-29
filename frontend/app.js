@@ -116,15 +116,17 @@ async function captureFrame(videoId, timestamp) {
           const base64 = canvas.toDataURL('image/jpeg', 0.95);
           console.log(`✅ Frame captured at ${timestamp}s, base64 length:`, base64.length);
 
-          // Clean up
-          document.body.removeChild(container);
+          // Clean up - remove from parent node
+          if (container.parentNode) {
+            container.parentNode.removeChild(container);
+          }
 
           resolve({ timestamp, data: base64 });
         } catch (err) {
           console.error(`❌ Capture error at ${timestamp}s:`, err);
           console.error(`❌ Error details:`, err.message, err.stack);
-          if (document.body.contains(container)) {
-            document.body.removeChild(container);
+          if (container.parentNode) {
+            container.parentNode.removeChild(container);
           }
           resolve({ timestamp, data: null });
         }
