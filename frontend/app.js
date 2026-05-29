@@ -1,7 +1,5 @@
-// Determine API base URL
-// On Vercel: will be set to Render backend URL before deployment
-// Locally: defaults to localhost:3000
-const API_BASE = window.BACKEND_URL || 'http://localhost:3000';
+// Render backend URL
+const API_BASE = 'https://yt-frame-extractor-backend.onrender.com';
 
 console.log('🎬 YouTube Frame Extractor Loaded');
 console.log('API_BASE:', API_BASE);
