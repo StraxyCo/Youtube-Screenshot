@@ -1,8 +1,6 @@
 {
   "buildCommand": "npm install",
+  "outputDirectory": "frontend",
   "devCommand": "vercel dev",
-  "installCommand": "npm install -g vercel && npm install",
-  "env": {
-    "VERCEL_ENV": "production"
-  }
+  "installCommand": "npm install"
 }
