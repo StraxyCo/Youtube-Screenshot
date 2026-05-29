@@ -64,45 +64,59 @@ async function captureFrame(videoId, timestamp) {
     try {
       console.log(`🎥 Capturing frame at ${timestamp}s`);
 
-      // Create a temporary player
+      // Create a temporary player container (visible but small)
       const container = document.createElement('div');
-      container.style.position = 'absolute';
-      container.style.left = '-9999px';
-      container.style.width = '1280px';
-      container.style.height = '720px';
+      container.id = `temp-player-${timestamp}`;
+      container.style.position = 'fixed';
+      container.style.bottom = '10px';
+      container.style.right = '10px';
+      container.style.width = '320px';
+      container.style.height = '180px';
+      container.style.zIndex = '999';
+      container.style.backgroundColor = '#000';
+      container.style.borderRadius = '8px';
+      container.style.overflow = 'hidden';
 
       const embed = document.createElement('iframe');
-      embed.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&start=${timestamp}&controls=1`;
-      embed.width = '1280';
-      embed.height = '720';
+      embed.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&start=${timestamp}&controls=0&modestbranding=1`;
+      embed.width = '320';
+      embed.height = '180';
       embed.style.border = 'none';
+      embed.style.width = '100%';
+      embed.style.height = '100%';
       embed.allow = 'autoplay';
 
       container.appendChild(embed);
       document.body.appendChild(container);
 
-      // Wait for player to load and play
+      // Wait for iframe to load, play, and render
       setTimeout(async () => {
         try {
+          console.log(`📸 html2canvas capturing at ${timestamp}s`);
           const canvas = await html2canvas(container, {
             backgroundColor: '#000000',
-            scale: 1,
+            scale: window.devicePixelRatio || 1,
             useCORS: true,
             allowTaint: true,
-            logging: false
+            logging: false,
+            foreignObjectRendering: true
           });
-
-          document.body.removeChild(container);
 
           const base64 = canvas.toDataURL('image/jpeg', 0.95);
           console.log(`✅ Frame captured at ${timestamp}s`);
+
+          // Clean up
+          document.body.removeChild(container);
+
           resolve({ timestamp, data: base64 });
         } catch (err) {
-          document.body.removeChild(container);
           console.error(`❌ Capture error at ${timestamp}s:`, err.message);
+          if (document.body.contains(container)) {
+            document.body.removeChild(container);
+          }
           resolve({ timestamp, data: null });
         }
-      }, 3000);
+      }, 4000); // Longer wait for iframe to fully load
     } catch (err) {
       console.error(`❌ Frame error at ${timestamp}s:`, err.message);
       resolve({ timestamp, data: null });
