@@ -64,18 +64,21 @@ async function captureFrame(videoId, timestamp) {
     try {
       console.log(`🎥 Capturing frame at ${timestamp}s`);
 
-      // Create a temporary player container (visible but small)
+      // Create a temporary player container (truly visible)
       const container = document.createElement('div');
       container.id = `temp-player-${timestamp}`;
       container.style.position = 'fixed';
-      container.style.bottom = '10px';
-      container.style.right = '10px';
-      container.style.width = '320px';
-      container.style.height = '180px';
-      container.style.zIndex = '999';
+      container.style.bottom = '20px';
+      container.style.right = '20px';
+      container.style.width = '400px';
+      container.style.height = '225px';
+      container.style.zIndex = '9999';
       container.style.backgroundColor = '#000';
       container.style.borderRadius = '8px';
       container.style.overflow = 'hidden';
+      container.style.visibility = 'visible';
+      container.style.display = 'block';
+      container.style.opacity = '1';
 
       const embed = document.createElement('iframe');
       embed.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&start=${timestamp}&controls=0&modestbranding=1`;
