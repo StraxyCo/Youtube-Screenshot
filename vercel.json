@@ -1,0 +1,8 @@
+{
+  "buildCommand": "npm install",
+  "devCommand": "vercel dev",
+  "installCommand": "npm install -g vercel && npm install",
+  "env": {
+    "VERCEL_ENV": "production"
+  }
+}

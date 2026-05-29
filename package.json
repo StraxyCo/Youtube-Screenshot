@@ -1,0 +1,16 @@
+{
+  "name": "yt-frame-extractor",
+  "version": "1.0.0",
+  "description": "Extract frames from YouTube videos",
+  "type": "module",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'Vercel handles the build'"
+  },
+  "dependencies": {
+    "ffmpeg-static": "^5.2.0"
+  },
+  "devDependencies": {
+    "vercel": "^54.6.1"
+  }
+}
