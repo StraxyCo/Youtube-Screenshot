@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: yt-frame-extractor-backend
+    runtime: node
+    region: oregon
+    rootDir: backend
+    buildCommand: bash build.sh
+    startCommand: node index.js
+    envVars:
+      - key: NODE_ENV
+        value: production
