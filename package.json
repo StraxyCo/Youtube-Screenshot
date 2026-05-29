@@ -7,8 +7,7 @@
     "build": "mkdir -p public && cp -r frontend/* public/"
   },
   "dependencies": {
-    "ffmpeg-static": "^5.2.0",
-    "yt-dlp": "latest"
+    "ffmpeg-static": "^5.2.0"
   },
   "devDependencies": {
     "vercel": "^54.6.1"
