@@ -64,33 +64,34 @@ async function captureFrame(videoId, timestamp) {
     try {
       console.log(`🎥 Capturing frame at ${timestamp}s`);
 
-      // Create a temporary player container (truly visible)
+      // Create a temporary player container (insert in normal document flow)
       const container = document.createElement('div');
       container.id = `temp-player-${timestamp}`;
-      container.style.position = 'fixed';
-      container.style.bottom = '20px';
-      container.style.right = '20px';
-      container.style.width = '400px';
-      container.style.height = '225px';
-      container.style.zIndex = '9999';
+      container.style.width = '100%';
+      container.style.maxWidth = '800px';
+      container.style.height = '450px';
       container.style.backgroundColor = '#000';
       container.style.borderRadius = '8px';
       container.style.overflow = 'hidden';
-      container.style.visibility = 'visible';
-      container.style.display = 'block';
-      container.style.opacity = '1';
+      container.style.margin = '20px auto';
+      container.style.border = '2px solid #333';
 
       const embed = document.createElement('iframe');
-      embed.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&start=${timestamp}&controls=0&modestbranding=1`;
-      embed.width = '320';
-      embed.height = '180';
+      embed.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&start=${timestamp}&controls=1&modestbranding=1`;
       embed.style.border = 'none';
       embed.style.width = '100%';
       embed.style.height = '100%';
       embed.allow = 'autoplay';
 
       container.appendChild(embed);
-      document.body.appendChild(container);
+
+      // Insert right after the input section
+      const inputSection = document.querySelector('.input-section');
+      if (inputSection) {
+        inputSection.parentNode.insertBefore(container, inputSection.nextSibling);
+      } else {
+        document.body.appendChild(container);
+      }
 
       // Wait for iframe to load, play, and render
       setTimeout(async () => {
