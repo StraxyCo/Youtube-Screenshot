@@ -1,6 +1,8 @@
 {
   "buildCommand": "npm install",
-  "outputDirectory": "frontend",
-  "devCommand": "vercel dev",
-  "installCommand": "npm install"
+  "installCommand": "npm install",
+  "routes": [
+    { "src": "/api/(.*)", "dest": "/api/$1" },
+    { "src": "/(.*)", "dest": "/frontend/$1" }
+  ]
 }
