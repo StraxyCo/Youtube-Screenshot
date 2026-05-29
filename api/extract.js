@@ -1,6 +1,6 @@
 const { spawn } = require('child_process');
 const ffmpegPath = require('ffmpeg-static');
-const ytdl = require('ytdl-core');
+const ytdl = require('@distube/ytdl');
 
 function slugify(str) {
   return str
