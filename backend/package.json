@@ -5,7 +5,9 @@
     "node": ">=20"
   },
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "postinstall": "npm run install-yt-dlp || true",
+    "install-yt-dlp": "pip3 install yt-dlp || python3 -m pip install yt-dlp || echo 'Warning: yt-dlp installation failed'"
   },
   "dependencies": {
     "express": "^4.18.0",
