@@ -21,14 +21,28 @@ function slugify(str) {
 
 function getVideoMetadata(url) {
   return new Promise((resolve, reject) => {
-    const proc = spawn('yt-dlp', ['--dump-json', '--no-playlist', url]);
+    const args = [
+      '--dump-json',
+      '--no-playlist',
+      '--socket-timeout', '30',
+      '--extractor-args', 'youtube:player_client=web',
+      url
+    ];
+
+    console.log('[getVideoMetadata] Running yt-dlp with args:', args);
+
+    const proc = spawn('yt-dlp', args);
     let output = '';
     let errorOutput = '';
 
     proc.stdout.on('data', chunk => (output += chunk));
-    proc.stderr.on('data', chunk => (errorOutput += chunk));
+    proc.stderr.on('data', chunk => {
+      errorOutput += chunk;
+      console.log('[getVideoMetadata] stderr:', chunk.toString().trim());
+    });
 
     proc.on('close', code => {
+      console.log('[getVideoMetadata] Exit code:', code);
       if (code !== 0) {
         const errorMsg = errorOutput.includes('private')
           ? 'Video unavailable: This video is private'
@@ -36,11 +50,12 @@ function getVideoMetadata(url) {
           ? 'Video unavailable: Video not found'
           : errorOutput.includes('geoblocked')
           ? 'Video unavailable: This video is geoblocked'
-          : 'Video unavailable: Unable to retrieve metadata';
+          : `Video unavailable: ${errorOutput.slice(0, 100)}`;
         reject(new Error(errorMsg));
       } else {
         try {
           const metadata = JSON.parse(output);
+          console.log('[getVideoMetadata] Metadata parsed:', metadata.title);
           resolve(metadata);
         } catch (err) {
           reject(new Error('Failed to parse video metadata'));
@@ -48,7 +63,10 @@ function getVideoMetadata(url) {
       }
     });
 
-    proc.on('error', err => reject(new Error(`yt-dlp error: ${err.message}`)));
+    proc.on('error', err => {
+      console.error('[getVideoMetadata] Process error:', err);
+      reject(new Error(`yt-dlp error: ${err.message}`));
+    });
   });
 }
 
