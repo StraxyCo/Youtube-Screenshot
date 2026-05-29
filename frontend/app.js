@@ -1,8 +1,8 @@
-const BACKEND_URL = window.BACKEND_URL || 'http://localhost:3000';
-// For Vercel: will be replaced with actual Vercel URL during deployment
+// Use relative URLs - works on localhost and Vercel automatically
+const API_BASE = '/api';
 
 console.log('🎬 YouTube Frame Extractor Loaded');
-console.log('BACKEND_URL:', BACKEND_URL);
+console.log('API_BASE:', API_BASE);
 
 let offset = 0;
 const DEFAULT_TIMESTAMPS = [1, 2, 3, 4, 5, 6, 7, 8];
@@ -34,7 +34,7 @@ function getCurrentTimestamps() {
 
 async function extractFrames(youtubeUrl, timestamps) {
   try {
-    const endpoint = `${BACKEND_URL}/api/extract`;
+    const endpoint = `${API_BASE}/extract`;
     console.log('📤 Calling:', endpoint);
     console.log('📝 Payload:', { url: youtubeUrl, timestamps });
 
