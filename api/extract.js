@@ -1,5 +1,6 @@
 const { spawn } = require('child_process');
 const ffmpegPath = require('ffmpeg-static');
+const ytdl = require('ytdl-core');
 
 function slugify(str) {
   return str
@@ -11,104 +12,95 @@ function slugify(str) {
     .substring(0, 60);
 }
 
-function getVideoMetadata(url) {
-  return new Promise((resolve, reject) => {
-    const proc = spawn('yt-dlp', ['--dump-json', '--no-playlist', url]);
-    let output = '';
-    let errorOutput = '';
-
-    proc.stdout.on('data', chunk => (output += chunk));
-    proc.stderr.on('data', chunk => (errorOutput += chunk));
-
-    proc.on('close', code => {
-      if (code !== 0) {
-        const errorMsg = errorOutput.includes('private')
-          ? 'Video unavailable: This video is private'
-          : errorOutput.includes('not found')
-          ? 'Video unavailable: Video not found'
-          : errorOutput.includes('geoblocked')
-          ? 'Video unavailable: This video is geoblocked'
-          : 'Video unavailable: Unable to retrieve metadata';
-        reject(new Error(errorMsg));
-      } else {
-        try {
-          const metadata = JSON.parse(output);
-          resolve(metadata);
-        } catch (err) {
-          reject(new Error('Failed to parse video metadata'));
-        }
-      }
-    });
-
-    proc.on('error', err => reject(new Error(`yt-dlp error: ${err.message}`)));
-  });
+async function getVideoMetadata(url) {
+  try {
+    console.log('[API/extract] Fetching video info from:', url);
+    const info = await ytdl.getInfo(url);
+    console.log('[API/extract] Got video info, title:', info.videoDetails.title);
+    return {
+      title: info.videoDetails.title,
+      videoId: info.videoDetails.videoId
+    };
+  } catch (err) {
+    console.error('[API/extract] Error getting video info:', err.message);
+    throw new Error('Video unavailable: Unable to retrieve metadata');
+  }
 }
 
-function extractFrame(url, timestamp) {
+function extractFrame(videoUrl, timestamp) {
   return new Promise((resolve) => {
     let resolved = false;
 
-    const ytdlp = spawn('yt-dlp', [
-      '-f',
-      'bestvideo[ext=mp4]/bestvideo',
-      '--no-playlist',
-      '-o',
-      '-',
-      url
-    ]);
+    try {
+      console.log(`[API/extract] Extracting frame at timestamp ${timestamp}s`);
 
-    const ff = spawn(ffmpegPath, [
-      '-i',
-      'pipe:0',
-      '-ss',
-      String(timestamp),
-      '-frames:v',
-      '1',
-      '-f',
-      'image2',
-      '-vcodec',
-      'mjpeg',
-      '-q:v',
-      '5',
-      'pipe:1'
-    ]);
+      const stream = ytdl(videoUrl, {
+        quality: 'highest'
+      });
 
-    ytdlp.stdout.pipe(ff.stdin);
+      const ff = spawn(ffmpegPath, [
+        '-i',
+        'pipe:0',
+        '-ss',
+        String(timestamp),
+        '-frames:v',
+        '1',
+        '-f',
+        'image2',
+        '-vcodec',
+        'mjpeg',
+        '-q:v',
+        '5',
+        'pipe:1'
+      ]);
 
-    const chunks = [];
-    ff.stdout.on('data', chunk => chunks.push(chunk));
+      stream.pipe(ff.stdin);
 
-    ff.stdout.on('end', () => {
-      if (resolved) return;
-      resolved = true;
-      const buffer = Buffer.concat(chunks);
-      if (buffer.length === 0) {
+      const chunks = [];
+      ff.stdout.on('data', chunk => chunks.push(chunk));
+
+      ff.stdout.on('end', () => {
+        if (resolved) return;
+        resolved = true;
+        const buffer = Buffer.concat(chunks);
+        if (buffer.length === 0) {
+          console.log(`[API/extract] Frame at ${timestamp}s is empty`);
+          resolve({ timestamp, data: null });
+        } else {
+          console.log(`[API/extract] Frame at ${timestamp}s extracted successfully`);
+          const base64 = 'data:image/jpeg;base64,' + buffer.toString('base64');
+          resolve({ timestamp, data: base64 });
+        }
+      });
+
+      ff.on('error', err => {
+        if (resolved) return;
+        resolved = true;
+        console.error(`[API/extract] ffmpeg error at ${timestamp}s:`, err.message);
         resolve({ timestamp, data: null });
-      } else {
-        const base64 = 'data:image/jpeg;base64,' + buffer.toString('base64');
-        resolve({ timestamp, data: base64 });
-      }
-    });
+      });
 
-    ff.on('error', () => {
+      stream.on('error', err => {
+        if (resolved) return;
+        resolved = true;
+        console.error(`[API/extract] stream error at ${timestamp}s:`, err.message);
+        resolve({ timestamp, data: null });
+      });
+
+      setTimeout(() => {
+        if (resolved) return;
+        resolved = true;
+        stream.destroy();
+        ff.kill();
+        console.log(`[API/extract] Frame at ${timestamp}s timed out`);
+        resolve({ timestamp, data: null });
+      }, 60000);
+    } catch (err) {
       if (resolved) return;
       resolved = true;
+      console.error(`[API/extract] Exception at ${timestamp}s:`, err.message);
       resolve({ timestamp, data: null });
-    });
-
-    ytdlp.on('error', () => {
-      if (resolved) return;
-      resolved = true;
-      resolve({ timestamp, data: null });
-    });
-
-    setTimeout(() => {
-      if (resolved) return;
-      resolved = true;
-      ytdlp.kill();
-      ff.kill();
-      resolve({ timestamp, data: null });
-    }, 60000);
+    }
   });
 }
 
