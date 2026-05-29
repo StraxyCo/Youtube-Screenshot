@@ -91,7 +91,7 @@ async function extractFrame(videoId, timestamp) {
     await page.goto(embedUrl, { waitUntil: 'networkidle2', timeout: 30000 });
 
     // Wait for video to load and play
-    await page.waitForTimeout(2000);
+    await new Promise(r => setTimeout(r, 2000));
 
     const screenshot = await page.screenshot({ type: 'jpeg', quality: 95 });
     const base64 = 'data:image/jpeg;base64,' + screenshot.toString('base64');
