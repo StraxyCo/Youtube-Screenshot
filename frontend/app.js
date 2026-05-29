@@ -1,6 +1,9 @@
 const BACKEND_URL = window.BACKEND_URL || 'http://localhost:3000';
 // For Vercel: will be replaced with actual Vercel URL during deployment
 
+console.log('🎬 YouTube Frame Extractor Loaded');
+console.log('BACKEND_URL:', BACKEND_URL);
+
 let offset = 0;
 const DEFAULT_TIMESTAMPS = [1, 2, 3, 4, 5, 6, 7, 8];
 let currentUrl = '';
@@ -31,19 +34,30 @@ function getCurrentTimestamps() {
 
 async function extractFrames(youtubeUrl, timestamps) {
   try {
-    const response = await fetch(`${BACKEND_URL}/extract`, {
+    const endpoint = `${BACKEND_URL}/api/extract`;
+    console.log('📤 Calling:', endpoint);
+    console.log('📝 Payload:', { url: youtubeUrl, timestamps });
+
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url: youtubeUrl, timestamps })
     });
 
+    console.log('📨 Response status:', response.status);
+    console.log('📨 Response headers:', response.headers);
+
     if (!response.ok) {
       const errorData = await response.json();
+      console.error('❌ Backend error:', errorData);
       throw new Error(errorData.error || `Backend error: ${response.status}`);
     }
 
-    return await response.json();
+    const data = await response.json();
+    console.log('✅ Extraction success:', data);
+    return data;
   } catch (err) {
+    console.error('❌ Extraction error:', err.message);
     throw new Error(err.message || 'Failed to extract frames');
   }
 }
@@ -116,6 +130,9 @@ async function performExtraction(url, timestamps) {
     return;
   }
 
+  console.log('🚀 Starting extraction for:', url);
+  console.log('⏱️ Timestamps:', timestamps);
+
   isLoading = true;
   extractBtn.disabled = true;
   nextBtn.disabled = true;
@@ -124,8 +141,10 @@ async function performExtraction(url, timestamps) {
 
   try {
     const result = await extractFrames(url, timestamps);
+    console.log('🎉 Got frames:', result.frames.length);
     renderFrames(result.title, result.frames);
   } catch (err) {
+    console.error('💥 Extraction failed:', err.message);
     showError(err.message);
     gridSection.classList.remove('visible');
   } finally {

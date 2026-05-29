@@ -113,6 +113,9 @@ function extractFrame(url, timestamp) {
 }
 
 module.exports = async function handler(req, res) {
+  console.log('[API/extract] Received request:', req.method);
+  console.log('[API/extract] Headers:', req.headers);
+
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
@@ -122,35 +125,46 @@ module.exports = async function handler(req, res) {
   );
 
   if (req.method === 'OPTIONS') {
+    console.log('[API/extract] OPTIONS request, returning 200');
     res.status(200).end();
     return;
   }
 
   if (req.method !== 'POST') {
+    console.log('[API/extract] Invalid method:', req.method);
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
     const { url, timestamps } = req.body;
+    console.log('[API/extract] Body:', { url, timestamps });
 
     if (!url || !Array.isArray(timestamps) || timestamps.length === 0) {
+      console.log('[API/extract] Invalid body');
       return res.status(400).json({ error: 'Invalid request: url and timestamps required' });
     }
 
+    console.log('[API/extract] Getting metadata for:', url);
     let metadata;
     try {
       metadata = await getVideoMetadata(url);
+      console.log('[API/extract] Metadata received:', metadata.title);
     } catch (err) {
+      console.log('[API/extract] Metadata error:', err.message);
       return res.status(400).json({ error: err.message });
     }
 
     const title = slugify(metadata.title || 'untitled');
+    console.log('[API/extract] Slugified title:', title);
 
+    console.log('[API/extract] Extracting', timestamps.length, 'frames...');
     const framePromises = timestamps.map(ts => extractFrame(url, ts));
     const frames = await Promise.all(framePromises);
+    console.log('[API/extract] Frames extracted:', frames.length);
 
     res.status(200).json({ title, frames });
   } catch (err) {
+    console.error('[API/extract] Error:', err.message);
     res.status(500).json({ error: err.message || 'Extraction failed' });
   }
 };
