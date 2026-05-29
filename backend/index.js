@@ -1,7 +1,6 @@
 const express = require('express');
 const cors = require('cors');
 const { spawn } = require('child_process');
-const puppeteer = require('puppeteer');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -39,8 +38,7 @@ function getVideoMetadata(url) {
     const proc = spawn('yt-dlp', [
       '--dump-json',
       '--no-playlist',
-      '--socket-timeout', '30',
-      '--extractor-args', 'youtube:player_client=web',
+      '--socket-timeout', '10',
       url
     ]);
 
@@ -52,12 +50,7 @@ function getVideoMetadata(url) {
 
     proc.on('close', code => {
       if (code !== 0) {
-        const errorMsg = errorOutput.includes('private')
-          ? 'Video unavailable: This video is private'
-          : errorOutput.includes('not found')
-          ? 'Video unavailable: Video not found'
-          : 'Video unavailable: Unable to retrieve metadata';
-        reject(new Error(errorMsg));
+        reject(new Error('Unable to retrieve video title'));
       } else {
         try {
           const metadata = JSON.parse(output);
@@ -69,96 +62,33 @@ function getVideoMetadata(url) {
     });
 
     proc.on('error', err => reject(new Error(`yt-dlp error: ${err.message}`)));
+
+    setTimeout(() => {
+      proc.kill();
+      reject(new Error('Metadata fetch timeout'));
+    }, 15000);
   });
 }
 
-async function extractFrame(videoId, timestamp) {
-  try {
-    console.log(`[extractFrame] Capturing frame at ${timestamp}s for video ${videoId}`);
-
-    const browser = await puppeteer.launch({
-      headless: 'new',
-      executablePath: '/usr/bin/chromium',
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-blink-features=AutomationControlled'
-      ]
-    });
-
-    const page = await browser.newPage();
-
-    // Hide automation detection
-    await page.evaluateOnNewDocument(() => {
-      Object.defineProperty(navigator, 'webdriver', {
-        get: () => false,
-      });
-    });
-
-    await page.setViewport({ width: 1920, height: 1080 });
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-
-    const embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&start=${timestamp}&mute=1`;
-    console.log(`[extractFrame] Loading: ${embedUrl}`);
-
-    await page.goto(embedUrl, { waitUntil: 'networkidle2', timeout: 30000 });
-
-    // Wait for video to load and play
-    await new Promise(r => setTimeout(r, 2000));
-
-    const screenshot = await page.screenshot({ type: 'jpeg', quality: 95 });
-    const base64 = 'data:image/jpeg;base64,' + screenshot.toString('base64');
-
-    await browser.close();
-
-    console.log(`[extractFrame] Frame captured successfully at ${timestamp}s`);
-    return { timestamp, data: base64 };
-  } catch (err) {
-    console.error(`[extractFrame] Error at ${timestamp}s:`, err.message);
-    return { timestamp, data: null };
-  }
-}
-
-app.get('/health', async (req, res) => {
-  try {
-    const proc = spawn('yt-dlp', ['--version']);
-    let version = '';
-
-    proc.stdout.on('data', chunk => (version += chunk));
-
-    proc.on('close', code => {
-      if (code === 0) {
-        res.json({
-          status: 'ok',
-          ytdlp: version.trim().split(' ')[0],
-          puppeteer: 'available'
-        });
-      } else {
-        res.status(500).json({ error: 'yt-dlp not available' });
-      }
-    });
-  } catch (err) {
-    res.status(500).json({ error: 'Health check failed' });
-  }
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', message: 'Backend is running' });
 });
 
-app.post('/extract', async (req, res) => {
+app.post('/metadata', async (req, res) => {
   try {
-    const { url, timestamps } = req.body;
+    const { url } = req.body;
 
-    if (!url || !Array.isArray(timestamps) || timestamps.length === 0) {
-      return res.status(400).json({ error: 'Invalid request: url and timestamps required' });
+    if (!url) {
+      return res.status(400).json({ error: 'URL is required' });
     }
 
-    console.log('[POST /extract] URL:', url);
-    console.log('[POST /extract] Timestamps:', timestamps);
+    console.log('[POST /metadata] URL:', url);
 
     // Extract video ID
     let videoId;
     try {
       videoId = extractVideoId(url);
-      console.log('[POST /extract] Video ID:', videoId);
+      console.log('[POST /metadata] Video ID:', videoId);
     } catch (err) {
       return res.status(400).json({ error: 'Invalid YouTube URL' });
     }
@@ -167,29 +97,18 @@ app.post('/extract', async (req, res) => {
     let metadata;
     try {
       metadata = await getVideoMetadata(url);
-      console.log('[POST /extract] Title:', metadata.title);
+      console.log('[POST /metadata] Title:', metadata.title);
     } catch (err) {
-      console.log('[POST /extract] Metadata error (non-critical):', err.message);
-      metadata = { title: 'Unknown Video' };
+      console.log('[POST /metadata] Could not fetch metadata:', err.message);
+      metadata = { title: 'YouTube Video' };
     }
 
-    const title = slugify(metadata.title || 'unknown-video');
+    const title = slugify(metadata.title || 'youtube-video');
 
-    // Extract frames in sequence (not parallel to avoid browser conflicts)
-    console.log('[POST /extract] Starting frame extraction...');
-    const frames = [];
-    for (const ts of timestamps) {
-      const frame = await extractFrame(videoId, ts);
-      frames.push(frame);
-      // Small delay between frames
-      await new Promise(r => setTimeout(r, 500));
-    }
-
-    console.log('[POST /extract] All frames extracted:', frames.length);
-    res.status(200).json({ title, frames });
+    res.json({ videoId, title });
   } catch (err) {
-    console.error('[POST /extract] Error:', err.message);
-    res.status(500).json({ error: err.message || 'Extraction failed' });
+    console.error('[POST /metadata] Error:', err.message);
+    res.status(500).json({ error: err.message || 'Failed to get metadata' });
   }
 });
 

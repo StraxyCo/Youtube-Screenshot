@@ -1,4 +1,8 @@
-// Render backend URL
+// Dynamically load html2canvas
+const script = document.createElement('script');
+script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+document.head.appendChild(script);
+
 const API_BASE = 'https://yt-frame-extractor-backend.onrender.com';
 
 console.log('🎬 YouTube Frame Extractor Loaded');
@@ -7,8 +11,8 @@ console.log('API_BASE:', API_BASE);
 let offset = 0;
 const DEFAULT_TIMESTAMPS = [1, 2, 3, 4, 5, 6, 7, 8];
 let currentUrl = '';
+let currentVideoId = '';
 let currentTitle = '';
-let currentFrames = [];
 let isLoading = false;
 
 const urlInput = document.getElementById('urlInput');
@@ -32,39 +36,82 @@ function getCurrentTimestamps() {
   return DEFAULT_TIMESTAMPS.map(t => t + offset);
 }
 
-async function extractFrames(youtubeUrl, timestamps) {
+async function getMetadata(url) {
   try {
-    const endpoint = `${API_BASE}/extract`;
-    console.log('📤 Calling:', endpoint);
-    console.log('📝 Payload:', { url: youtubeUrl, timestamps });
-
-    const response = await fetch(endpoint, {
+    console.log('📤 Fetching metadata for:', url);
+    const response = await fetch(`${API_BASE}/metadata`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url: youtubeUrl, timestamps })
+      body: JSON.stringify({ url })
     });
-
-    console.log('📨 Response status:', response.status);
-    console.log('📨 Response headers:', response.headers);
 
     if (!response.ok) {
       const errorData = await response.json();
-      console.error('❌ Backend error:', errorData);
       throw new Error(errorData.error || `Backend error: ${response.status}`);
     }
 
     const data = await response.json();
-    console.log('✅ Extraction success:', data);
+    console.log('✅ Metadata received:', data);
     return data;
   } catch (err) {
-    console.error('❌ Extraction error:', err.message);
-    throw new Error(err.message || 'Failed to extract frames');
+    console.error('❌ Metadata error:', err.message);
+    throw err;
   }
+}
+
+async function captureFrame(videoId, timestamp) {
+  return new Promise((resolve) => {
+    try {
+      console.log(`🎥 Capturing frame at ${timestamp}s`);
+
+      // Create a temporary player
+      const container = document.createElement('div');
+      container.style.position = 'absolute';
+      container.style.left = '-9999px';
+      container.style.width = '1280px';
+      container.style.height = '720px';
+
+      const embed = document.createElement('iframe');
+      embed.src = `https://www.youtube.com/embed/${videoId}?autoplay=1&start=${timestamp}&controls=1`;
+      embed.width = '1280';
+      embed.height = '720';
+      embed.style.border = 'none';
+      embed.allow = 'autoplay';
+
+      container.appendChild(embed);
+      document.body.appendChild(container);
+
+      // Wait for player to load and play
+      setTimeout(async () => {
+        try {
+          const canvas = await html2canvas(container, {
+            backgroundColor: '#000000',
+            scale: 1,
+            useCORS: true,
+            allowTaint: true,
+            logging: false
+          });
+
+          document.body.removeChild(container);
+
+          const base64 = canvas.toDataURL('image/jpeg', 0.95);
+          console.log(`✅ Frame captured at ${timestamp}s`);
+          resolve({ timestamp, data: base64 });
+        } catch (err) {
+          document.body.removeChild(container);
+          console.error(`❌ Capture error at ${timestamp}s:`, err.message);
+          resolve({ timestamp, data: null });
+        }
+      }, 3000);
+    } catch (err) {
+      console.error(`❌ Frame error at ${timestamp}s:`, err.message);
+      resolve({ timestamp, data: null });
+    }
+  });
 }
 
 function renderFrames(title, frames) {
   currentTitle = title;
-  currentFrames = frames;
   videoTitle.textContent = title;
 
   framesGrid.innerHTML = '';
@@ -94,7 +141,7 @@ function renderFrames(title, frames) {
     } else {
       const placeholder = document.createElement('div');
       placeholder.className = 'frame-placeholder';
-      placeholder.textContent = 'Timestamp\nout of range';
+      placeholder.textContent = 'Capture\nFailed';
       container.appendChild(placeholder);
     }
 
@@ -124,14 +171,11 @@ function downloadFrame(base64DataUrl, title, timestamp) {
   document.body.removeChild(link);
 }
 
-async function performExtraction(url, timestamps) {
+async function performExtraction(url) {
   if (!url.trim()) {
     showError('Please enter a YouTube URL');
     return;
   }
-
-  console.log('🚀 Starting extraction for:', url);
-  console.log('⏱️ Timestamps:', timestamps);
 
   isLoading = true;
   extractBtn.disabled = true;
@@ -140,9 +184,27 @@ async function performExtraction(url, timestamps) {
   gridSection.classList.remove('visible');
 
   try {
-    const result = await extractFrames(url, timestamps);
-    console.log('🎉 Got frames:', result.frames.length);
-    renderFrames(result.title, result.frames);
+    console.log('🚀 Starting extraction for:', url);
+
+    // Get metadata
+    const metadata = await getMetadata(url);
+    currentVideoId = metadata.videoId;
+    currentTitle = metadata.title;
+
+    console.log('📸 Capturing frames...');
+    const timestamps = getCurrentTimestamps();
+
+    // Capture frames sequentially
+    const frames = [];
+    for (const ts of timestamps) {
+      const frame = await captureFrame(metadata.videoId, ts);
+      frames.push(frame);
+      // Small delay between captures
+      await new Promise(r => setTimeout(r, 1000));
+    }
+
+    console.log('🎉 All frames captured:', frames.length);
+    renderFrames(metadata.title, frames);
   } catch (err) {
     console.error('💥 Extraction failed:', err.message);
     showError(err.message);
@@ -157,18 +219,18 @@ async function performExtraction(url, timestamps) {
 extractBtn.addEventListener('click', async () => {
   currentUrl = urlInput.value.trim();
   offset = 0;
-  await performExtraction(currentUrl, getCurrentTimestamps());
+  await performExtraction(currentUrl);
 });
 
 urlInput.addEventListener('keypress', async e => {
   if (e.key === 'Enter') {
     currentUrl = urlInput.value.trim();
     offset = 0;
-    await performExtraction(currentUrl, getCurrentTimestamps());
+    await performExtraction(currentUrl);
   }
 });
 
 nextBtn.addEventListener('click', async () => {
   offset += 8;
-  await performExtraction(currentUrl, getCurrentTimestamps());
+  await performExtraction(currentUrl);
 });
