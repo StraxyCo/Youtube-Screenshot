@@ -1,8 +1,5 @@
 {
-  "buildCommand": "npm install",
+  "buildCommand": "npm run build",
   "installCommand": "npm install",
-  "routes": [
-    { "src": "/api/(.*)", "dest": "/api/$1" },
-    { "src": "/(.*)", "dest": "/frontend/$1" }
-  ]
+  "outputDirectory": "public"
 }

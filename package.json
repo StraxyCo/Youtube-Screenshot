@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vercel dev",
-    "build": "echo 'Vercel handles the build'"
+    "build": "mkdir -p public && cp -r frontend/* public/"
   },
   "dependencies": {
     "ffmpeg-static": "^5.2.0"
