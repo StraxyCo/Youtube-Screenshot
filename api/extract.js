@@ -15,6 +15,7 @@ function slugify(str) {
 async function getVideoMetadata(url) {
   try {
     console.log('[API/extract] Fetching video info from:', url);
+    console.log('[API/extract] Using ytdl-core version...');
     const info = await ytdl.getInfo(url);
     console.log('[API/extract] Got video info, title:', info.videoDetails.title);
     return {
@@ -22,8 +23,9 @@ async function getVideoMetadata(url) {
       videoId: info.videoDetails.videoId
     };
   } catch (err) {
-    console.error('[API/extract] Error getting video info:', err.message);
-    throw new Error('Video unavailable: Unable to retrieve metadata');
+    console.error('[API/extract] ytdl-core error:', err.message);
+    console.error('[API/extract] Full error:', err);
+    throw new Error(`Video unavailable: ${err.message}`);
   }
 }
 
