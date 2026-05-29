@@ -2,7 +2,6 @@
   "name": "yt-frame-extractor",
   "version": "1.0.0",
   "description": "Extract frames from YouTube videos",
-  "type": "module",
   "scripts": {
     "dev": "vercel dev",
     "build": "mkdir -p public && cp -r frontend/* public/"
